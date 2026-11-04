@@ -1,0 +1,1584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="theme-color" content="#0f1117" id="theme-meta"/>
+<title>Map Viewer</title>
+
+<style>
+/* ══════════════════════════════════════════════════════
+   TOKENS & RESET
+══════════════════════════════════════════════════════ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+
+:root{
+  --bg:#0f1117;
+  --bg2:#161920;
+  --surface:#1e2130;
+  --surface2:#272b3d;
+  --surface3:#2f3449;
+  --accent:#4f8ef7;
+  --accent2:#7b61ff;
+  --accent3:#22d3ee;
+  --ok:#22c55e;
+  --warn:#f59e0b;
+  --text:#eef0fb;
+  --text2:#a3aac8;
+  --text3:#6b7494;
+  --border:rgba(255,255,255,0.07);
+  --border2:rgba(255,255,255,0.12);
+  --shadow:0 4px 24px rgba(0,0,0,0.6);
+  --shadow2:0 12px 48px rgba(0,0,0,0.7);
+  --r:14px;
+  --r2:20px;
+  --r3:100px;
+  --ease:cubic-bezier(.4,0,.2,1);
+  --dur:.22s;
+  --top-h:env(safe-area-inset-top,0px);
+  --bot-h:env(safe-area-inset-bottom,0px);
+  --left-h:env(safe-area-inset-left,0px);
+  --right-h:env(safe-area-inset-right,0px);
+}
+
+[data-theme="light"]{
+  --bg:#eef0f7;
+  --bg2:#e5e8f2;
+  --surface:#ffffff;
+  --surface2:#f0f2f9;
+  --surface3:#e5e8f2;
+  --text:#1a1d2e;
+  --text2:#4a5070;
+  --text3:#8891aa;
+  --border:rgba(0,0,0,0.08);
+  --border2:rgba(0,0,0,0.14);
+}
+
+html{height:100%;height:-webkit-fill-available;touch-action:none;overscroll-behavior:none}
+body{
+  height:100%;height:-webkit-fill-available;
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  background:var(--bg);color:var(--text);
+  overflow:hidden;position:fixed;width:100%;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ══════════════════════════════════════════════════════
+   APP SHELL
+══════════════════════════════════════════════════════ */
+#app{
+  display:flex;flex-direction:column;
+  height:100%;width:100%;
+  position:relative;overflow:hidden;
+}
+
+/* ══════════════════════════════════════════════════════
+   TOP BAR
+══════════════════════════════════════════════════════ */
+#topbar{
+  flex-shrink:0;
+  display:flex;align-items:center;gap:8px;
+  padding:calc(var(--top-h) + 8px) calc(var(--right-h) + 10px) 8px calc(var(--left-h) + 10px);
+  background:rgba(var(--surface-rgb,30,33,48),0.95);
+  backdrop-filter:blur(20px) saturate(180%);
+  -webkit-backdrop-filter:blur(20px) saturate(180%);
+  border-bottom:1px solid var(--border);
+  z-index:200;
+  position:relative;
+}
+
+[data-theme="dark"] #topbar{background:rgba(30,33,48,0.95)}
+[data-theme="light"] #topbar{background:rgba(255,255,255,0.95)}
+
+.tb-logo{
+  width:34px;height:34px;flex-shrink:0;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  border-radius:10px;display:flex;align-items:center;justify-content:center;
+  font-size:17px;box-shadow:0 2px 12px rgba(79,142,247,0.4);
+  user-select:none;
+}
+
+.tb-title{
+  font-size:.95rem;font-weight:700;letter-spacing:-.3px;
+  flex-shrink:0;white-space:nowrap;
+}
+
+/* search */
+.search-wrap{
+  flex:1;min-width:0;
+  position:relative;
+}
+.search-wrap input{
+  width:100%;
+  padding:9px 36px 9px 36px;
+  background:var(--surface2);
+  border:1.5px solid var(--border);
+  border-radius:var(--r3);
+  color:var(--text);font-size:.85rem;
+  outline:none;
+  transition:border-color var(--dur) var(--ease),box-shadow var(--dur) var(--ease);
+}
+.search-wrap input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(79,142,247,.18)}
+.search-wrap input::placeholder{color:var(--text3)}
+.search-ico{position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:14px;pointer-events:none;color:var(--text3)}
+.search-clear{
+  position:absolute;right:10px;top:50%;transform:translateY(-50%);
+  background:none;border:none;color:var(--text3);cursor:pointer;
+  font-size:13px;padding:3px;border-radius:50%;line-height:1;display:none;
+  transition:color var(--dur);
+}
+.search-clear:hover{color:var(--text)}
+.search-wrap input:not(:placeholder-shown)~.search-clear{display:block}
+
+/* icon buttons */
+.ic-btn{
+  flex-shrink:0;
+  width:36px;height:36px;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--surface2);border:1.5px solid var(--border);
+  border-radius:10px;cursor:pointer;font-size:17px;color:var(--text);
+  transition:background var(--dur),border-color var(--dur),transform .1s;
+  position:relative;
+}
+.ic-btn:hover{background:var(--accent);border-color:var(--accent);color:#fff}
+.ic-btn:active{transform:scale(.9)}
+.ic-btn .badge{
+  position:absolute;top:-4px;right:-4px;
+  width:14px;height:14px;border-radius:50%;
+  background:var(--accent);color:#fff;font-size:.55rem;
+  display:flex;align-items:center;justify-content:center;font-weight:700;
+  border:2px solid var(--bg);
+}
+
+/* ══════════════════════════════════════════════════════
+   MAP WRAPPER
+══════════════════════════════════════════════════════ */
+#map-wrap{
+  flex:1;position:relative;overflow:hidden;
+  touch-action:none;
+  background:var(--bg);
+}
+
+#map-iframe{
+  position:absolute;
+  /* slightly oversized so we have room to pan without white edges */
+  width:100%;height:100%;
+  border:none;display:block;
+  transform-origin:0 0;
+  will-change:transform;
+  pointer-events:auto;
+}
+
+/* ══════════════════════════════════════════════════════
+   LOADING SCREEN
+══════════════════════════════════════════════════════ */
+#loading{
+  position:absolute;inset:0;
+  background:var(--bg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;
+  z-index:900;
+  transition:opacity .6s var(--ease);
+}
+#loading.gone{opacity:0;pointer-events:none}
+.spinner{
+  width:52px;height:52px;
+  border:3px solid var(--border2);
+  border-top-color:var(--accent);
+  border-radius:50%;
+  animation:spin .9s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-txt{color:var(--text2);font-size:.9rem}
+
+/* ══════════════════════════════════════════════════════
+   FLOATING FAB CLUSTER (right side)
+══════════════════════════════════════════════════════ */
+#fab-cluster{
+  position:absolute;
+  right:calc(var(--right-h) + 14px);
+  bottom:calc(var(--bot-h) + 90px);
+  display:flex;flex-direction:column;gap:9px;
+  z-index:100;
+}
+.fab{
+  width:48px;height:48px;
+  background:var(--surface);
+  border:1.5px solid var(--border2);
+  border-radius:14px;
+  color:var(--text);font-size:20px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;
+  box-shadow:var(--shadow);
+  backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);
+  transition:background var(--dur),border-color var(--dur),transform .1s,box-shadow var(--dur);
+  user-select:none;
+  -webkit-user-select:none;
+}
+.fab:hover{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 4px 20px rgba(79,142,247,.5)}
+.fab:active{transform:scale(.87);box-shadow:none}
+.fab.danger:hover{background:#ef4444;border-color:#ef4444}
+
+/* ══════════════════════════════════════════════════════
+   ZOOM INDICATOR (top-left of map)
+══════════════════════════════════════════════════════ */
+#zoom-pill{
+  position:absolute;
+  left:calc(var(--left-h) + 12px);
+  top:12px;
+  background:var(--surface);
+  border:1px solid var(--border2);
+  border-radius:var(--r3);
+  padding:5px 12px;
+  font-size:.78rem;font-weight:700;
+  color:var(--text);
+  box-shadow:var(--shadow);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  pointer-events:none;
+  z-index:50;
+  display:flex;align-items:center;gap:5px;
+  opacity:1;
+  transition:opacity .3s;
+}
+#zoom-pill.hide{opacity:0}
+
+/* ══════════════════════════════════════════════════════
+   MINIMAP
+══════════════════════════════════════════════════════ */
+#minimap{
+  position:absolute;
+  left:calc(var(--left-h) + 12px);
+  bottom:calc(var(--bot-h) + 90px);
+  width:150px;height:100px;
+  border-radius:var(--r);
+  overflow:hidden;
+  border:1.5px solid var(--border2);
+  box-shadow:var(--shadow2);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  background:var(--surface);
+  z-index:50;
+  cursor:pointer;
+  transition:transform .2s var(--ease),opacity .3s;
+}
+#minimap:hover{transform:scale(1.05)}
+#minimap.off{opacity:0;pointer-events:none;transform:scale(.8)}
+#minimap-frame{width:100%;height:100%;border:none;pointer-events:none;opacity:.8}
+#minimap-badge{
+  position:absolute;top:5px;left:7px;
+  font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;
+  color:var(--text2);pointer-events:none;
+  background:rgba(0,0,0,.35);border-radius:4px;padding:1px 5px;
+}
+
+/* ══════════════════════════════════════════════════════
+   BOTTOM SHEET (mobile control panel)
+══════════════════════════════════════════════════════ */
+#sheet-backdrop{
+  position:fixed;inset:0;
+  background:rgba(0,0,0,0);
+  z-index:300;
+  pointer-events:none;
+  transition:background var(--dur);
+}
+#sheet-backdrop.open{background:rgba(0,0,0,.55);pointer-events:all}
+
+#bottom-sheet{
+  position:fixed;
+  left:0;right:0;bottom:0;
+  z-index:400;
+  background:var(--surface);
+  border-radius:24px 24px 0 0;
+  border-top:1px solid var(--border2);
+  box-shadow:0 -8px 40px rgba(0,0,0,.7);
+  transform:translateY(100%);
+  transition:transform .35s var(--ease);
+  max-height:88vh;
+  display:flex;flex-direction:column;
+  overflow:hidden;
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  touch-action:none;
+}
+#bottom-sheet.open{transform:translateY(0)}
+#bottom-sheet.peek{transform:translateY(calc(100% - 72px))}
+
+/* sheet handle */
+.sheet-handle{
+  flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  padding:12px 0 4px;
+  cursor:grab;
+}
+.sheet-handle::after{
+  content:'';width:40px;height:4px;
+  background:var(--border2);border-radius:var(--r3);
+}
+
+/* sheet header */
+.sheet-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:4px 20px 12px;
+  flex-shrink:0;
+}
+.sheet-title{font-size:.95rem;font-weight:700}
+.sheet-close{
+  width:28px;height:28px;border-radius:50%;
+  background:var(--surface2);border:none;color:var(--text2);
+  font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:background var(--dur);
+}
+.sheet-close:hover{background:var(--surface3)}
+
+/* sheet scroll body */
+.sheet-body{
+  flex:1;overflow-y:auto;
+  overscroll-behavior:contain;
+  padding:0 16px 20px;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:none;
+}
+.sheet-body::-webkit-scrollbar{display:none}
+
+/* sheet sections */
+.s-section{margin-bottom:20px}
+.s-label{
+  font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.9px;
+  color:var(--text3);margin-bottom:10px;padding:0 2px;
+}
+
+/* pill row */
+.pill-row{display:flex;gap:8px;flex-wrap:wrap}
+.pill{
+  display:flex;align-items:center;gap:6px;
+  background:var(--surface2);border:1.5px solid var(--border);
+  border-radius:var(--r3);padding:9px 16px;
+  font-size:.82rem;font-weight:500;color:var(--text);
+  cursor:pointer;white-space:nowrap;
+  transition:background var(--dur),border-color var(--dur),transform .1s;
+  user-select:none;-webkit-user-select:none;
+}
+.pill:hover{background:rgba(79,142,247,.18);border-color:var(--accent)}
+.pill:active{transform:scale(.93)}
+.pill.active{background:var(--accent);border-color:var(--accent);color:#fff}
+
+/* grid cards */
+.card-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.card{
+  background:var(--surface2);border:1.5px solid var(--border);
+  border-radius:var(--r);padding:14px 8px;
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  cursor:pointer;text-align:center;
+  transition:background var(--dur),border-color var(--dur),transform .12s;
+  user-select:none;-webkit-user-select:none;
+}
+.card:active{transform:scale(.92);background:var(--surface3)}
+.card:hover{background:rgba(79,142,247,.12);border-color:var(--accent)}
+.card .ci{font-size:24px;line-height:1}
+.card .cl{font-size:.7rem;color:var(--text2);font-weight:500}
+
+/* row with toggle */
+.row-toggle{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 0;border-bottom:1px solid var(--border);
+}
+.row-toggle:last-child{border:none}
+.row-left{display:flex;align-items:center;gap:10px;font-size:.85rem}
+.row-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+
+/* switch */
+.sw{position:relative;width:42px;height:24px;flex-shrink:0}
+.sw input{opacity:0;width:0;height:0}
+.sw-track{
+  position:absolute;inset:0;
+  background:var(--surface3);border-radius:var(--r3);cursor:pointer;
+  transition:background var(--dur);border:1px solid var(--border2);
+}
+.sw-track::before{
+  content:'';position:absolute;
+  width:18px;height:18px;top:2px;left:2px;
+  background:var(--text3);border-radius:50%;
+  transition:transform var(--dur),background var(--dur);
+}
+.sw input:checked+.sw-track{background:var(--accent);border-color:var(--accent)}
+.sw input:checked+.sw-track::before{transform:translateX(18px);background:#fff}
+
+/* zoom slider */
+.slider-row{margin-top:8px}
+.slider-row input[type=range]{
+  width:100%;height:6px;
+  -webkit-appearance:none;appearance:none;
+  background:var(--surface3);border-radius:var(--r3);outline:none;cursor:pointer;
+}
+.slider-row input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;
+  width:22px;height:22px;border-radius:50%;
+  background:var(--accent);cursor:pointer;
+  box-shadow:0 2px 8px rgba(79,142,247,.5);
+  border:2px solid #fff;
+}
+.slider-row input[type=range]::-moz-range-thumb{
+  width:22px;height:22px;border-radius:50%;
+  background:var(--accent);cursor:pointer;
+  border:2px solid #fff;
+}
+
+/* d-pad */
+.dpad{
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  grid-template-rows:1fr 1fr 1fr;
+  gap:6px;width:160px;margin:0 auto;
+}
+.dpad-btn{
+  height:46px;border-radius:12px;
+  background:var(--surface2);border:1.5px solid var(--border);
+  color:var(--text);font-size:18px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:background var(--dur),transform .1s;
+  user-select:none;-webkit-user-select:none;
+}
+.dpad-btn:active{transform:scale(.88);background:var(--accent);color:#fff;border-color:var(--accent)}
+.dpad-center{font-size:12px;border-color:var(--accent);color:var(--accent)}
+
+/* shortcut grid */
+.shortcut-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.sc-item{
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--surface2);border-radius:9px;padding:8px 12px;
+  font-size:.78rem;color:var(--text2);
+}
+kbd{
+  background:var(--surface3);border:1px solid var(--border2);
+  border-radius:5px;padding:1px 7px;font-family:monospace;
+  font-size:.72rem;color:var(--text);
+}
+
+/* ══════════════════════════════════════════════════════
+   BOTTOM NAV BAR
+══════════════════════════════════════════════════════ */
+#bottom-nav{
+  position:fixed;bottom:0;left:0;right:0;
+  z-index:200;
+  background:rgba(var(--surface-rgb,30,33,48),.96);
+  backdrop-filter:blur(20px) saturate(180%);
+  -webkit-backdrop-filter:blur(20px) saturate(180%);
+  border-top:1px solid var(--border);
+  display:flex;align-items:center;
+  padding:6px 8px calc(var(--bot-h) + 6px);
+  gap:4px;
+}
+[data-theme="dark"] #bottom-nav{background:rgba(30,33,48,.96)}
+[data-theme="light"] #bottom-nav{background:rgba(255,255,255,.96)}
+
+.nav-btn{
+  flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+  padding:8px 4px;border-radius:12px;cursor:pointer;
+  background:none;border:none;color:var(--text3);
+  font-size:.65rem;font-weight:600;text-transform:uppercase;letter-spacing:.5px;
+  transition:color var(--dur),background var(--dur),transform .1s;
+  user-select:none;-webkit-user-select:none;
+  position:relative;
+}
+.nav-btn .ni{font-size:22px;line-height:1;transition:transform .2s}
+.nav-btn:active{transform:scale(.88)}
+.nav-btn.active{color:var(--accent)}
+.nav-btn.active .ni{transform:scale(1.15)}
+.nav-btn:active .ni{transform:scale(.85)}
+
+/* centre big FAB in bottom nav */
+.nav-btn.main-fab{
+  width:52px;height:52px;flex:0 0 52px;
+  border-radius:16px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  color:#fff;font-size:24px;padding:0;
+  box-shadow:0 4px 20px rgba(79,142,247,.55);
+  transition:transform .15s,box-shadow .15s;
+}
+.nav-btn.main-fab:active{transform:scale(.88);box-shadow:none}
+
+/* ══════════════════════════════════════════════════════
+   TOAST
+══════════════════════════════════════════════════════ */
+#toast-box{
+  position:fixed;top:calc(var(--top-h) + 72px);left:50%;transform:translateX(-50%);
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  z-index:999;pointer-events:none;
+  width:max-content;max-width:90vw;
+}
+.toast{
+  background:var(--surface);border:1px solid var(--border2);
+  border-radius:var(--r3);padding:10px 20px;
+  font-size:.82rem;color:var(--text);
+  box-shadow:var(--shadow2);
+  animation:tIn .25s var(--ease),tOut .25s var(--ease) 2.1s forwards;
+  display:flex;align-items:center;gap:8px;
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  white-space:nowrap;
+}
+@keyframes tIn{from{opacity:0;transform:translateY(-10px) scale(.92)}to{opacity:1;transform:none}}
+@keyframes tOut{to{opacity:0;transform:translateY(-8px) scale(.92)}}
+
+/* ══════════════════════════════════════════════════════
+   MODAL / DRAWER
+══════════════════════════════════════════════════════ */
+.modal-bg{
+  position:fixed;inset:0;
+  background:rgba(0,0,0,.62);backdrop-filter:blur(6px);
+  -webkit-backdrop-filter:blur(6px);
+  z-index:600;
+  opacity:0;pointer-events:none;
+  transition:opacity var(--dur);
+  display:flex;align-items:flex-end;justify-content:center;
+}
+.modal-bg.open{opacity:1;pointer-events:all}
+.modal-box{
+  background:var(--surface);
+  border-radius:24px 24px 0 0;
+  border-top:1px solid var(--border2);
+  width:100%;max-width:520px;
+  max-height:80vh;overflow-y:auto;
+  padding:20px 24px calc(var(--bot-h) + 24px);
+  box-shadow:var(--shadow2);
+  transform:translateY(30px);
+  transition:transform .3s var(--ease);
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:none;
+}
+.modal-box::-webkit-scrollbar{display:none}
+.modal-bg.open .modal-box{transform:translateY(0)}
+.modal-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.modal-h h2{font-size:1.05rem;font-weight:700}
+.modal-close{
+  width:30px;height:30px;border-radius:50%;
+  background:var(--surface2);border:none;color:var(--text2);
+  font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+}
+.modal-p{font-size:.83rem;color:var(--text2);line-height:1.65;margin-bottom:10px}
+.share-row{display:flex;gap:8px;margin-top:10px}
+.share-in{
+  flex:1;background:var(--surface2);border:1px solid var(--border);
+  border-radius:10px;padding:9px 12px;color:var(--text);font-size:.8rem;outline:none;
+}
+.share-cp{
+  background:var(--accent);border:none;border-radius:10px;
+  color:#fff;padding:9px 16px;cursor:pointer;font-size:.8rem;font-weight:700;
+  transition:opacity var(--dur);flex-shrink:0;
+}
+.share-cp:hover{opacity:.85}
+
+/* ══════════════════════════════════════════════════════
+   SEARCH SUGGESTION DROPDOWN
+══════════════════════════════════════════════════════ */
+#suggestions{
+  position:fixed;top:calc(var(--top-h) + 56px);left:0;right:0;
+  background:var(--surface);border-top:none;border-bottom:1px solid var(--border2);
+  z-index:250;
+  overflow:hidden;max-height:0;
+  transition:max-height .2s var(--ease);
+}
+#suggestions.open{max-height:280px}
+.sugg-item{
+  display:flex;align-items:center;gap:12px;
+  padding:13px 16px;border-bottom:1px solid var(--border);
+  cursor:pointer;font-size:.88rem;color:var(--text);
+  transition:background var(--dur);
+}
+.sugg-item:hover{background:var(--surface2)}
+.sugg-item:last-child{border:none}
+.sugg-icon{font-size:16px;width:20px;text-align:center;flex-shrink:0}
+
+/* ══════════════════════════════════════════════════════
+   GESTURE HINT OVERLAY
+══════════════════════════════════════════════════════ */
+#hint-overlay{
+  position:fixed;inset:0;
+  background:rgba(0,0,0,.72);
+  z-index:800;
+  display:flex;align-items:center;justify-content:center;
+  animation:hintFade 3.8s forwards;
+}
+@keyframes hintFade{0%,70%{opacity:1}100%{opacity:0;pointer-events:none}}
+.hint-box{
+  background:var(--surface);border-radius:var(--r2);padding:28px 32px;
+  text-align:center;max-width:300px;
+  animation:hintIn .4s var(--ease);
+}
+@keyframes hintIn{from{transform:scale(.8);opacity:0}to{transform:scale(1);opacity:1}}
+.hint-box h2{font-size:1rem;font-weight:700;margin-bottom:16px}
+.hint-row{display:flex;align-items:center;gap:14px;margin-bottom:12px;text-align:left;font-size:.85rem;color:var(--text2)}
+.hint-ic{font-size:22px;width:28px;text-align:center;flex-shrink:0}
+.hint-skip{
+  margin-top:16px;background:var(--accent);border:none;border-radius:var(--r3);
+  color:#fff;padding:10px 24px;cursor:pointer;font-size:.85rem;font-weight:700;
+  width:100%;transition:opacity var(--dur);
+}
+.hint-skip:hover{opacity:.85}
+
+/* ══════════════════════════════════════════════════════
+   LOCATION PULSE
+══════════════════════════════════════════════════════ */
+#loc-btn.locating .ni{animation:locPulse .8s ease infinite alternate}
+@keyframes locPulse{from{opacity:1}to{opacity:.3}}
+
+/* ══════════════════════════════════════════════════════
+   PRINT
+══════════════════════════════════════════════════════ */
+@media print{
+  #topbar,#bottom-nav,#fab-cluster,#minimap,#zoom-pill,#toast-box,#hint-overlay,
+  #bottom-sheet,#sheet-backdrop{display:none!important}
+  #map-wrap,#map-iframe{position:static!important;width:100vw!important;height:100vh!important;transform:none!important}
+}
+
+/* ══════════════════════════════════════════════════════
+   DESKTOP TWEAKS (> 700px)
+══════════════════════════════════════════════════════ */
+@media(min-width:700px){
+  #app{flex-direction:row}
+
+  /* left sidebar on desktop */
+  #left-panel{
+    width:270px;flex-shrink:0;
+    background:var(--surface);
+    border-right:1px solid var(--border);
+    display:flex;flex-direction:column;
+    overflow:hidden;
+    transition:margin-left var(--dur) var(--ease),width var(--dur) var(--ease);
+    z-index:100;
+  }
+  #left-panel.collapsed{width:0;margin-left:0}
+
+  #left-panel-scroll{
+    flex:1;overflow-y:auto;
+    scrollbar-width:thin;scrollbar-color:var(--border) transparent;
+    padding:12px;
+  }
+  #left-panel-scroll::-webkit-scrollbar{width:4px}
+  #left-panel-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+
+  /* hide mobile-only elements on desktop */
+  #bottom-nav{display:none}
+  #bottom-sheet,#sheet-backdrop{display:none}
+
+  /* show desktop panel */
+  #left-panel{display:flex}
+
+  /* map wraps properly */
+  #map-wrap{flex:1;height:100%}
+  #app{height:100vh}
+
+  /* desktop minimap bigger */
+  #minimap{width:200px;height:134px;bottom:calc(var(--bot-h) + 20px)}
+  #fab-cluster{bottom:calc(var(--bot-h) + 20px)}
+}
+
+/* ══════════════════════════════════════════════════════
+   DESKTOP LEFT PANEL (reuse section styles)
+══════════════════════════════════════════════════════ */
+.lp-section{padding:12px 2px 12px;border-bottom:1px solid var(--border)}
+.lp-section:last-child{border:none}
+.lp-label{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.9px;color:var(--text3);margin-bottom:9px}
+
+/* ══════════════════════════════════════════════════════
+   FOCUS / A11Y
+══════════════════════════════════════════════════════ */
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:5px}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+/* ══════════════════════════════════════════════════════
+   MISC HELPERS
+══════════════════════════════════════════════════════ */
+.flex-center{display:flex;align-items:center;justify-content:center}
+.gap6{gap:6px}
+
+/* ══════════════════════════════════════════════════════
+   SCROLL ANIMATIONS
+══════════════════════════════════════════════════════ */
+.anim-pop:active{animation:pop .15s var(--ease)}
+@keyframes pop{0%{transform:scale(1)}50%{transform:scale(.88)}100%{transform:scale(1)}}
+
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════
+     GESTURE HINT (first visit)
+════════════════════════════════════════════════ -->
+<div id="hint-overlay" role="dialog" aria-label="Gesture help" aria-modal="true">
+  <div class="hint-box">
+    <h2>📍 Map Controls</h2>
+    <div class="hint-row"><span class="hint-ic">🤏</span><span>Pinch 2 fingers to zoom in/out</span></div>
+    <div class="hint-row"><span class="hint-ic">👆</span><span>Single finger scrolls the map</span></div>
+    <div class="hint-row"><span class="hint-ic">🖱️</span><span>Scroll wheel zooms on desktop</span></div>
+    <div class="hint-row"><span class="hint-ic">⬆️</span><span>Swipe up bottom bar for controls</span></div>
+    <button class="hint-skip" id="hint-skip">Got it!</button>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     APP SHELL
+════════════════════════════════════════════════ -->
+<div id="app">
+
+  <!-- ── TOP BAR ── -->
+  <header id="topbar">
+    <button class="ic-btn" id="panel-toggle" aria-label="Toggle panel" title="Panel">☰</button>
+    <div class="tb-logo" aria-hidden="true">📍</div>
+    <span class="tb-title">Map Viewer</span>
+
+    <div class="search-wrap" role="search">
+      <label for="s-input" class="sr-only">Search location</label>
+      <span class="search-ico" aria-hidden="true">🔍</span>
+      <input type="search" id="s-input" placeholder="Search…" autocomplete="off" inputmode="search" aria-label="Search location"/>
+      <button class="search-clear" id="s-clear" aria-label="Clear">✕</button>
+    </div>
+
+    <button class="ic-btn" id="theme-btn" aria-label="Toggle theme" title="Theme">🌙</button>
+    <button class="ic-btn" id="fs-btn" aria-label="Fullscreen" title="Fullscreen">⛶</button>
+  </header>
+
+  <!-- ── DESKTOP LEFT PANEL ── -->
+  <div id="left-panel" aria-label="Controls" role="complementary">
+    <div id="left-panel-scroll">
+
+      <div class="lp-section">
+        <div class="lp-label">Quick Actions</div>
+        <div class="card-grid">
+          <div class="card" id="d-fit" role="button" tabindex="0" aria-label="Fit view"><span class="ci">⊡</span><span class="cl">Fit</span></div>
+          <div class="card" id="d-reset" role="button" tabindex="0" aria-label="Reset"><span class="ci">🎯</span><span class="cl">Reset</span></div>
+          <div class="card" id="d-print" role="button" tabindex="0" aria-label="Print"><span class="ci">🖨️</span><span class="cl">Print</span></div>
+          <div class="card" id="d-share" role="button" tabindex="0" aria-label="Share"><span class="ci">🔗</span><span class="cl">Share</span></div>
+          <div class="card" id="d-minimap" role="button" tabindex="0" aria-label="Minimap"><span class="ci">🗾</span><span class="cl">Minimap</span></div>
+          <div class="card" id="d-maps" role="button" tabindex="0" aria-label="Open Maps"><span class="ci">↗️</span><span class="cl">Maps</span></div>
+        </div>
+      </div>
+
+      <div class="lp-section">
+        <div class="lp-label">Zoom — <span id="d-zoom-val">100%</span></div>
+        <div class="slider-row" style="margin-bottom:10px">
+          <input type="range" id="d-slider" min="30" max="400" value="100" step="5" aria-label="Zoom slider"/>
+        </div>
+        <div class="pill-row">
+          <div class="pill" id="d-zi">🔍 In</div>
+          <div class="pill" id="d-zo">🔎 Out</div>
+          <div class="pill" id="d-z0">↩ Reset</div>
+        </div>
+      </div>
+
+      <div class="lp-section">
+        <div class="lp-label">Navigate</div>
+        <div class="dpad" style="margin-bottom:10px">
+          <div></div>
+          <button class="dpad-btn" id="d-pu" aria-label="Pan up">↑</button>
+          <div></div>
+          <button class="dpad-btn" id="d-pl" aria-label="Pan left">←</button>
+          <button class="dpad-btn dpad-center" id="d-pc" aria-label="Center">⊙</button>
+          <button class="dpad-btn" id="d-pr" aria-label="Pan right">→</button>
+          <div></div>
+          <button class="dpad-btn" id="d-pd" aria-label="Pan down">↓</button>
+          <div></div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:.82rem;color:var(--text2)">Drag-to-pan mode</span>
+          <label class="sw"><input type="checkbox" id="d-pan-sw" aria-label="Pan mode"><span class="sw-track"></span></label>
+        </div>
+      </div>
+
+      <div class="lp-section">
+        <div class="lp-label">Display</div>
+        <div class="row-toggle">
+          <span class="row-left"><span class="row-dot" style="background:var(--ok)"></span>Minimap</span>
+          <label class="sw"><input type="checkbox" checked id="d-minimap-sw" aria-label="Minimap"><span class="sw-track"></span></label>
+        </div>
+        <div class="row-toggle">
+          <span class="row-left"><span class="row-dot" style="background:var(--warn)"></span>Smooth Zoom</span>
+          <label class="sw"><input type="checkbox" checked id="d-smooth-sw" aria-label="Smooth zoom"><span class="sw-track"></span></label>
+        </div>
+        <div class="row-toggle">
+          <span class="row-left"><span class="row-dot" style="background:var(--accent3)"></span>Show Zoom Pill</span>
+          <label class="sw"><input type="checkbox" checked id="d-pill-sw" aria-label="Zoom pill"><span class="sw-track"></span></label>
+        </div>
+      </div>
+
+      <div class="lp-section">
+        <div class="lp-label">Keyboard Shortcuts</div>
+        <div class="shortcut-grid">
+          <div class="sc-item"><span>Zoom In</span><kbd>+</kbd></div>
+          <div class="sc-item"><span>Zoom Out</span><kbd>−</kbd></div>
+          <div class="sc-item"><span>Reset</span><kbd>0</kbd></div>
+          <div class="sc-item"><span>Panel</span><kbd>S</kbd></div>
+          <div class="sc-item"><span>Theme</span><kbd>T</kbd></div>
+          <div class="sc-item"><span>Fullscreen</span><kbd>F</kbd></div>
+          <div class="sc-item"><span>Pan</span><kbd>↑↓←→</kbd></div>
+          <div class="sc-item"><span>Help</span><kbd>?</kbd></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── MAP AREA ── -->
+  <main id="map-wrap" aria-label="Map">
+
+    <!-- Loading -->
+    <div id="loading" role="status" aria-live="polite">
+      <div class="spinner" aria-hidden="true"></div>
+      <span class="loading-txt">Loading map…</span>
+    </div>
+
+    <!-- The iframe -->
+    <iframe
+      id="map-iframe"
+      src="https://www.google.com/maps/d/embed?mid=1BnEibZDWqBpgNH3QhXnyJ39wUDRxAAg&ehbc=2E312F"
+      title="Interactive Map"
+      allowfullscreen
+      loading="lazy"
+      referrerpolicy="no-referrer-when-downgrade"
+      aria-label="Google My Maps"
+    ></iframe>
+
+    <!-- Zoom pill -->
+    <div id="zoom-pill" aria-live="polite" role="status">🔍 <span id="zp-txt">100%</span></div>
+
+    <!-- Minimap -->
+    <div id="minimap" aria-label="Overview minimap" role="complementary" tabindex="0" title="Minimap — click to toggle">
+      <span id="minimap-badge">Overview</span>
+      <iframe id="minimap-frame"
+        src="https://www.google.com/maps/d/embed?mid=1BnEibZDWqBpgNH3QhXnyJ39wUDRxAAg&ehbc=2E312F"
+        title="Minimap"
+        aria-hidden="true" tabindex="-1" loading="lazy"
+        referrerpolicy="no-referrer-when-downgrade"
+      ></iframe>
+    </div>
+
+    <!-- FAB cluster -->
+    <div id="fab-cluster" aria-label="Map controls">
+      <button class="fab" id="f-zi" aria-label="Zoom in">+</button>
+      <button class="fab" id="f-zo" aria-label="Zoom out">−</button>
+      <button class="fab" id="f-r0" aria-label="Reset view" title="Reset">↩</button>
+      <button class="fab" id="loc-btn" aria-label="My location" title="My location">📍</button>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast-box" aria-live="polite" aria-atomic="true"></div>
+
+  </main>
+
+</div><!-- /#app -->
+
+<!-- ── BOTTOM NAV (mobile) ── -->
+<nav id="bottom-nav" aria-label="Navigation">
+  <button class="nav-btn" id="nb-panel" aria-label="Controls">
+    <span class="ni">🎛️</span>
+    <span>Controls</span>
+  </button>
+  <button class="nav-btn" id="nb-search-btn" aria-label="Search">
+    <span class="ni">🔍</span>
+    <span>Search</span>
+  </button>
+  <button class="nav-btn main-fab" id="nb-maps" aria-label="Open in Maps">
+    <span class="ni">↗</span>
+  </button>
+  <button class="nav-btn" id="nb-share" aria-label="Share">
+    <span class="ni">🔗</span>
+    <span>Share</span>
+  </button>
+  <button class="nav-btn" id="nb-more" aria-label="More options">
+    <span class="ni">⋯</span>
+    <span>More</span>
+  </button>
+</nav>
+
+<!-- ── BOTTOM SHEET (mobile controls) ── -->
+<div id="sheet-backdrop" aria-hidden="true"></div>
+<div id="bottom-sheet" role="dialog" aria-modal="true" aria-label="Map Controls">
+  <div class="sheet-handle" id="sheet-drag-handle"></div>
+  <div class="sheet-header">
+    <span class="sheet-title">🎛️ Map Controls</span>
+    <button class="sheet-close" id="sheet-close" aria-label="Close">✕</button>
+  </div>
+  <div class="sheet-body">
+
+    <div class="s-section">
+      <div class="s-label">Quick</div>
+      <div class="card-grid">
+        <div class="card" id="s-fit" role="button" tabindex="0"><span class="ci">⊡</span><span class="cl">Fit</span></div>
+        <div class="card" id="s-reset" role="button" tabindex="0"><span class="ci">🎯</span><span class="cl">Reset</span></div>
+        <div class="card" id="s-print" role="button" tabindex="0"><span class="ci">🖨️</span><span class="cl">Print</span></div>
+        <div class="card" id="s-minimap" role="button" tabindex="0"><span class="ci">🗾</span><span class="cl">Minimap</span></div>
+        <div class="card" id="s-share" role="button" tabindex="0"><span class="ci">🔗</span><span class="cl">Share</span></div>
+        <div class="card" id="s-fs" role="button" tabindex="0"><span class="ci">⛶</span><span class="cl">Fullscreen</span></div>
+      </div>
+    </div>
+
+    <div class="s-section">
+      <div class="s-label">Zoom — <span id="s-zoom-val">100%</span></div>
+      <div class="slider-row" style="margin-bottom:12px">
+        <input type="range" id="s-slider" min="30" max="400" value="100" step="5" aria-label="Zoom slider"/>
+      </div>
+      <div class="pill-row" style="justify-content:center">
+        <div class="pill" id="s-50">50%</div>
+        <div class="pill" id="s-100">100%</div>
+        <div class="pill" id="s-150">150%</div>
+        <div class="pill" id="s-200">200%</div>
+      </div>
+    </div>
+
+    <div class="s-section">
+      <div class="s-label">Navigate</div>
+      <div class="dpad" style="margin-bottom:12px">
+        <div></div>
+        <button class="dpad-btn" id="s-pu">↑</button>
+        <div></div>
+        <button class="dpad-btn" id="s-pl">←</button>
+        <button class="dpad-btn dpad-center" id="s-pc">⊙</button>
+        <button class="dpad-btn" id="s-pr">→</button>
+        <div></div>
+        <button class="dpad-btn" id="s-pd">↓</button>
+        <div></div>
+      </div>
+    </div>
+
+    <div class="s-section">
+      <div class="s-label">Display</div>
+      <div class="row-toggle">
+        <span class="row-left"><span class="row-dot" style="background:var(--ok)"></span>Minimap</span>
+        <label class="sw"><input type="checkbox" checked id="s-minimap-sw"><span class="sw-track"></span></label>
+      </div>
+      <div class="row-toggle">
+        <span class="row-left"><span class="row-dot" style="background:var(--warn)"></span>Smooth Zoom</span>
+        <label class="sw"><input type="checkbox" checked id="s-smooth-sw"><span class="sw-track"></span></label>
+      </div>
+      <div class="row-toggle">
+        <span class="row-left"><span class="row-dot" style="background:var(--accent3)"></span>Dark Theme</span>
+        <label class="sw"><input type="checkbox" checked id="s-theme-sw"><span class="sw-track"></span></label>
+      </div>
+      <div class="row-toggle">
+        <span class="row-left"><span class="row-dot" style="background:var(--accent)"></span>Drag-to-pan</span>
+        <label class="sw"><input type="checkbox" id="s-pan-sw"><span class="sw-track"></span></label>
+      </div>
+    </div>
+
+    <div class="s-section">
+      <div class="s-label">Gestures</div>
+      <div class="pill-row">
+        <div class="pill" style="pointer-events:none;opacity:.6">👆 1-finger: scroll map</div>
+        <div class="pill" style="pointer-events:none;opacity:.6">🤏 Pinch: zoom</div>
+        <div class="pill" style="pointer-events:none;opacity:.6">🔄 2-drag: pan view</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── SEARCH SUGGESTIONS ── -->
+<div id="suggestions" role="listbox" aria-label="Search suggestions">
+  <div class="sugg-item" data-q="Asia"><span class="sugg-icon">🌏</span>Asia</div>
+  <div class="sugg-item" data-q="Europe"><span class="sugg-icon">🌍</span>Europe</div>
+  <div class="sugg-item" data-q="Americas"><span class="sugg-icon">🌎</span>Americas</div>
+  <div class="sugg-item" data-q="Africa"><span class="sugg-icon">🌍</span>Africa</div>
+  <div class="sugg-item" data-q="Oceania"><span class="sugg-icon">🌏</span>Oceania</div>
+</div>
+
+<!-- ── SHARE MODAL ── -->
+<div class="modal-bg" id="share-modal" role="dialog" aria-modal="true" aria-label="Share">
+  <div class="modal-box">
+    <div class="modal-h">
+      <h2>🔗 Share Map</h2>
+      <button class="modal-close" id="share-close">✕</button>
+    </div>
+    <p class="modal-p">Share this viewer:</p>
+    <div class="share-row">
+      <input class="share-in" id="share-link" readonly value="" aria-label="Viewer link"/>
+      <button class="share-cp" id="share-copy">Copy</button>
+    </div>
+    <p class="modal-p" style="margin-top:16px">Open original map:</p>
+    <div class="share-row">
+      <input class="share-in" readonly value="https://www.google.com/maps/d/viewer?mid=1BnEibZDWqBpgNH3QhXnyJ39wUDRxAAg" aria-label="Google Maps link"/>
+      <button class="share-cp" onclick="navigator.clipboard.writeText(this.previousElementSibling.value);toast('📋 Copied!')">Copy</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── HELP MODAL ── -->
+<div class="modal-bg" id="help-modal" role="dialog" aria-modal="true" aria-label="Help">
+  <div class="modal-box">
+    <div class="modal-h">
+      <h2>⌨️ Help & Tips</h2>
+      <button class="modal-close" id="help-close">✕</button>
+    </div>
+    <p class="modal-p"><strong>Zoom:</strong> Pinch gesture · scroll wheel · +/− keys · slider in controls</p>
+    <p class="modal-p"><strong>Pan:</strong> 1-finger drag on map · Arrow keys · D-pad in controls · enable Drag-to-pan</p>
+    <p class="modal-p"><strong>Mobile:</strong> Swipe ↑ bottom bar · tap controls icon in nav · use 2-finger drag to pan view</p>
+    <p class="modal-p"><strong>Desktop:</strong> Scroll = zoom · Panel toggle with S key</p>
+    <p class="modal-p"><strong>Theme:</strong> T key or moon icon</p>
+    <p class="modal-p" style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px">💡 The embedded map is fully interactive — click markers, Street View, zoom controls inside the map all work!</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     JAVASCRIPT
+═══════════════════════════════════════════════════════ -->
+<script>
+'use strict';
+/* ─────────────────────────────────────────────────────────
+   STATE
+───────────────────────────────────────────────────────── */
+const S = {
+  scale: 1, tx: 0, ty: 0,
+  minScale: 0.3, maxScale: 5,
+  dark: true,
+  smooth: true,
+  panMode: false,
+  minimapOn: true,
+  pillOn: true,
+  animRaf: null,
+  /* touch */
+  touch: { active:false, startTx:0, startTy:0, startX:0, startY:0 },
+  pinch: { active:false, startDist:0, startScale:1, cx:0, cy:0 },
+  /* mouse drag */
+  drag: { active:false, startX:0, startY:0, startTx:0, startTy:0 },
+};
+
+const STEP = 0.18, PAN = 72;
+const MAPS_URL = 'https://www.google.com/maps/d/viewer?mid=1BnEibZDWqBpgNH3QhXnyJ39wUDRxAAg';
+const EMBED_URL = 'https://www.google.com/maps/d/embed?mid=1BnEibZDWqBpgNH3QhXnyJ39wUDRxAAg&ehbc=2E312F';
+
+/* ─────────────────────────────────────────────────────────
+   DOM REFS
+───────────────────────────────────────────────────────── */
+const $ = id => document.getElementById(id);
+const mapWrap   = $('map-wrap');
+const iframe    = $('map-iframe');
+const zpTxt     = $('zp-txt');
+const zoomPill  = $('zoom-pill');
+const minimap   = $('minimap');
+const loading   = $('loading');
+const dSlider   = $('d-slider');
+const sSlider   = $('s-slider');
+const dZoomVal  = $('d-zoom-val');
+const sZoomVal  = $('s-zoom-val');
+const toastBox  = $('toast-box');
+const sheet     = $('bottom-sheet');
+const backdrop  = $('sheet-backdrop');
+const leftPanel = $('left-panel');
+
+/* ─────────────────────────────────────────────────────────
+   TRANSFORM ENGINE (RAF-based, no jank)
+───────────────────────────────────────────────────────── */
+function clamp(v,mn,mx){return Math.max(mn,Math.min(mx,v))}
+function pct(s){return Math.round(s*100)+'%'}
+
+function applyNow(){
+  iframe.style.transform = `matrix(${S.scale},0,0,${S.scale},${S.tx},${S.ty})`;
+}
+function applySmooth(targetScale,targetTx,targetTy,ms=280){
+  if(S.animRaf) cancelAnimationFrame(S.animRaf);
+  const startS=S.scale, startX=S.tx, startY=S.ty;
+  const t0=performance.now();
+  function ease(t){return t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2}
+  function step(now){
+    const t=Math.min((now-t0)/ms,1),e=ease(t);
+    S.scale=startS+(targetScale-startS)*e;
+    S.tx=startX+(targetTx-startX)*e;
+    S.ty=startY+(targetTy-startY)*e;
+    applyNow();
+    updateUI();
+    if(t<1) S.animRaf=requestAnimationFrame(step);
+  }
+  S.animRaf=requestAnimationFrame(step);
+}
+
+function zoomTo(ns,ox,oy,animate=true){
+  ns=clamp(ns,S.minScale,S.maxScale);
+  if(ox==null){const r=mapWrap.getBoundingClientRect();ox=r.width/2;oy=r.height/2}
+  // keep point under cursor fixed
+  const rx=(ox-S.tx)/S.scale, ry=(oy-S.ty)/S.scale;
+  const nx=ox-rx*ns, ny=oy-ry*ns;
+  if(animate&&S.smooth) applySmooth(ns,nx,ny);
+  else{S.scale=ns;S.tx=nx;S.ty=ny;applyNow();updateUI()}
+}
+
+function panBy(dx,dy,animate=true){
+  if(animate&&S.smooth) applySmooth(S.scale,S.tx+dx,S.ty+dy,180);
+  else{S.tx+=dx;S.ty+=dy;applyNow();updateUI()}
+}
+
+function resetView(animate=true){
+  if(animate&&S.smooth) applySmooth(1,0,0,320);
+  else{S.scale=1;S.tx=0;S.ty=0;applyNow();updateUI()}
+  toast('↩️ View reset');
+}
+
+function fitView(){
+  /* scale to fill + center */
+  resetView(true);
+  toast('⊡ Fit to screen');
+}
+
+function updateUI(){
+  const p=pct(S.scale);
+  zpTxt.textContent=p;
+  if(dSlider) dSlider.value=Math.round(S.scale*100);
+  if(sSlider) sSlider.value=Math.round(S.scale*100);
+  if(dZoomVal) dZoomVal.textContent=p;
+  if(sZoomVal) sZoomVal.textContent=p;
+}
+
+/* ─────────────────────────────────────────────────────────
+   TOAST
+───────────────────────────────────────────────────────── */
+function toast(msg,ms=2500){
+  const el=document.createElement('div');
+  el.className='toast';el.textContent=msg;
+  el.setAttribute('role','status');
+  toastBox.appendChild(el);
+  setTimeout(()=>el.remove(),ms+300);
+}
+
+/* ─────────────────────────────────────────────────────────
+   HAPTIC FEEDBACK (where available)
+───────────────────────────────────────────────────────── */
+function haptic(pattern=[10]){
+  if(navigator.vibrate) navigator.vibrate(pattern);
+}
+
+/* ─────────────────────────────────────────────────────────
+   LOADING
+───────────────────────────────────────────────────────── */
+iframe.addEventListener('load',()=>{
+  setTimeout(()=>loading.classList.add('gone'),500);
+});
+setTimeout(()=>loading.classList.add('gone'),6000);
+
+/* ─────────────────────────────────────────────────────────
+   THEME
+───────────────────────────────────────────────────────── */
+const themeBtn=$('theme-btn');
+const themeMetaEl=$('theme-meta');
+function setTheme(dark){
+  S.dark=dark;
+  document.documentElement.setAttribute('data-theme',dark?'dark':'light');
+  themeBtn.textContent=dark?'🌙':'☀️';
+  themeMetaEl.content=dark?'#0f1117':'#eef0f7';
+  localStorage.setItem('mv-theme',dark?'dark':'light');
+  // sync sheet toggle
+  const sw=$('s-theme-sw');
+  if(sw) sw.checked=dark;
+}
+(()=>{
+  const saved=localStorage.getItem('mv-theme');
+  setTheme(saved!=='light');
+})();
+themeBtn.addEventListener('click',()=>{setTheme(!S.dark);toast(S.dark?'🌙 Dark mode':'☀️ Light mode')});
+
+/* ─────────────────────────────────────────────────────────
+   FULLSCREEN
+───────────────────────────────────────────────────────── */
+function toggleFS(){
+  if(!document.fullscreenElement&&!document.webkitFullscreenElement){
+    (document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen).call(document.documentElement).catch(()=>{});
+    toast('⛶ Fullscreen on');
+  } else {
+    (document.exitFullscreen||document.webkitExitFullscreen).call(document).catch(()=>{});
+    toast('↙ Exited fullscreen');
+  }
+}
+$('fs-btn').addEventListener('click',toggleFS);
+
+/* ─────────────────────────────────────────────────────────
+   PANEL / SHEET TOGGLE
+───────────────────────────────────────────────────────── */
+function openSheet(){
+  sheet.classList.add('open');
+  backdrop.classList.add('open');
+  backdrop.setAttribute('aria-hidden','false');
+  haptic([8]);
+}
+function closeSheet(){
+  sheet.classList.remove('open','peek');
+  backdrop.classList.remove('open');
+  backdrop.setAttribute('aria-hidden','true');
+}
+$('panel-toggle').addEventListener('click',()=>{
+  const isMobile=window.innerWidth<700;
+  if(isMobile) openSheet();
+  else leftPanel.classList.toggle('collapsed');
+});
+$('nb-panel').addEventListener('click',()=>{openSheet();$('nb-panel').classList.add('active');setTimeout(()=>$('nb-panel').classList.remove('active'),300)});
+$('sheet-close').addEventListener('click',closeSheet);
+backdrop.addEventListener('click',closeSheet);
+
+/* ─────────────────────────────────────────────────────────
+   SHEET DRAG HANDLE (swipe to dismiss)
+───────────────────────────────────────────────────────── */
+let sheetDragY=null, sheetStartTranslate=0;
+const handle=$('sheet-drag-handle');
+handle.addEventListener('touchstart',e=>{sheetDragY=e.touches[0].clientY},{ passive:true });
+handle.addEventListener('touchmove',e=>{
+  if(sheetDragY==null) return;
+  const dy=e.touches[0].clientY-sheetDragY;
+  if(dy>0) sheet.style.transform=`translateY(${dy}px)`;
+},{ passive:true });
+handle.addEventListener('touchend',e=>{
+  const dy=e.changedTouches[0].clientY-sheetDragY;
+  sheet.style.transform='';
+  if(dy>80) closeSheet();
+  sheetDragY=null;
+},{ passive:true });
+
+/* ─────────────────────────────────────────────────────────
+   MINIMAP
+───────────────────────────────────────────────────────── */
+function toggleMinimap(on){
+  S.minimapOn=on??!S.minimapOn;
+  minimap.classList.toggle('off',!S.minimapOn);
+  // sync all toggles
+  const sw1=$('d-minimap-sw'), sw2=$('s-minimap-sw');
+  if(sw1) sw1.checked=S.minimapOn;
+  if(sw2) sw2.checked=S.minimapOn;
+  toast(S.minimapOn?'🗾 Minimap on':'🗾 Minimap off');
+  haptic([6]);
+}
+minimap.addEventListener('click',()=>toggleMinimap());
+minimap.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();toggleMinimap()}});
+$('d-minimap-sw').addEventListener('change',e=>toggleMinimap(e.target.checked));
+$('s-minimap-sw').addEventListener('change',e=>toggleMinimap(e.target.checked));
+$('d-minimap').addEventListener('click',()=>toggleMinimap());
+$('s-minimap').addEventListener('click',()=>{toggleMinimap();closeSheet()});
+
+/* ─────────────────────────────────────────────────────────
+   SMOOTH ZOOM TOGGLE
+───────────────────────────────────────────────────────── */
+$('d-smooth-sw').addEventListener('change',e=>{S.smooth=e.target.checked;$('s-smooth-sw').checked=e.target.checked;toast(S.smooth?'✨ Smooth zoom':'⚡ Instant zoom')});
+$('s-smooth-sw').addEventListener('change',e=>{S.smooth=e.target.checked;$('d-smooth-sw').checked=e.target.checked});
+
+/* ─────────────────────────────────────────────────────────
+   ZOOM PILL TOGGLE
+───────────────────────────────────────────────────────── */
+$('d-pill-sw').addEventListener('change',e=>{
+  S.pillOn=e.target.checked;
+  zoomPill.classList.toggle('hide',!S.pillOn);
+  toast(S.pillOn?'📊 Zoom pill on':'📊 Zoom pill off');
+});
+
+/* ─────────────────────────────────────────────────────────
+   PAN MODE
+───────────────────────────────────────────────────────── */
+function setPanMode(on){
+  S.panMode=on;
+  iframe.style.pointerEvents=on?'none':'auto';
+  const sw1=$('d-pan-sw'),sw2=$('s-pan-sw');
+  if(sw1) sw1.checked=on;
+  if(sw2) sw2.checked=on;
+  toast(on?'✋ Pan mode: drag to scroll':'👆 Pan mode off');
+}
+$('d-pan-sw').addEventListener('change',e=>setPanMode(e.target.checked));
+$('s-pan-sw').addEventListener('change',e=>setPanMode(e.target.checked));
+
+/* ─────────────────────────────────────────────────────────
+   SHEET THEME SW
+───────────────────────────────────────────────────────── */
+$('s-theme-sw').addEventListener('change',e=>setTheme(e.target.checked));
+
+/* ─────────────────────────────────────────────────────────
+   OPEN MAPS
+───────────────────────────────────────────────────────── */
+const openMaps=()=>window.open(MAPS_URL,'_blank','noopener');
+$('nb-maps').addEventListener('click',openMaps);
+$('d-maps').addEventListener('click',openMaps);
+
+/* ─────────────────────────────────────────────────────────
+   SHARE MODAL
+───────────────────────────────────────────────────────── */
+function openShare(){
+  $('share-link').value=window.location.href;
+  $('share-modal').classList.add('open');
+}
+$('nb-share').addEventListener('click',openShare);
+$('d-share').addEventListener('click',openShare);
+$('s-share').addEventListener('click',()=>{openShare();closeSheet()});
+$('share-close').addEventListener('click',()=>$('share-modal').classList.remove('open'));
+$('share-modal').addEventListener('click',e=>{if(e.target===$('share-modal'))$('share-modal').classList.remove('open')});
+$('share-copy').addEventListener('click',()=>{
+  navigator.clipboard.writeText($('share-link').value)
+    .then(()=>toast('📋 Link copied!'))
+    .catch(()=>toast('⚠️ Copy manually'));
+});
+
+/* ─────────────────────────────────────────────────────────
+   HELP MODAL
+───────────────────────────────────────────────────────── */
+$('help-close').addEventListener('click',()=>$('help-modal').classList.remove('open'));
+$('help-modal').addEventListener('click',e=>{if(e.target===$('help-modal'))$('help-modal').classList.remove('open')});
+
+/* ─────────────────────────────────────────────────────────
+   MORE NAV BUTTON
+───────────────────────────────────────────────────────── */
+$('nb-more').addEventListener('click',()=>$('help-modal').classList.add('open'));
+
+/* ─────────────────────────────────────────────────────────
+   PRINT
+───────────────────────────────────────────────────────── */
+function doPrint(){window.print();toast('🖨️ Printing…')}
+$('d-print').addEventListener('click',doPrint);
+$('s-print').addEventListener('click',()=>{doPrint();closeSheet()});
+
+/* ─────────────────────────────────────────────────────────
+   LOCATION
+───────────────────────────────────────────────────────── */
+$('loc-btn').addEventListener('click',()=>{
+  const btn=$('loc-btn');
+  btn.classList.add('locating');
+  if(!navigator.geolocation){toast('❌ Geolocation not supported');btn.classList.remove('locating');return}
+  navigator.geolocation.getCurrentPosition(
+    pos=>{
+      btn.classList.remove('locating');
+      toast(`📍 ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`);
+      haptic([15,5,15]);
+    },
+    ()=>{btn.classList.remove('locating');toast('❌ Location unavailable')}
+  );
+});
+
+/* ─────────────────────────────────────────────────────────
+   ZOOM BUTTONS
+───────────────────────────────────────────────────────── */
+function zi(){zoomTo(S.scale+STEP);haptic([5])}
+function zo(){zoomTo(S.scale-STEP);haptic([5])}
+
+$('f-zi').addEventListener('click',zi);
+$('f-zo').addEventListener('click',zo);
+$('f-r0').addEventListener('click',()=>resetView());
+$('d-zi').addEventListener('click',zi);
+$('d-zo').addEventListener('click',zo);
+$('d-z0').addEventListener('click',()=>resetView());
+
+/* zoom preset pills */
+$('s-50').addEventListener('click',()=>{zoomTo(0.5);toast('50%')});
+$('s-100').addEventListener('click',()=>{zoomTo(1);toast('100%')});
+$('s-150').addEventListener('click',()=>{zoomTo(1.5);toast('150%')});
+$('s-200').addEventListener('click',()=>{zoomTo(2);toast('200%')});
+
+/* ─────────────────────────────────────────────────────────
+   SLIDERS (desktop & sheet)
+───────────────────────────────────────────────────────── */
+function onSlider(val){zoomTo(val/100,null,null,false);updateUI()}
+dSlider.addEventListener('input',()=>onSlider(+dSlider.value));
+sSlider.addEventListener('input',()=>onSlider(+sSlider.value));
+
+/* ─────────────────────────────────────────────────────────
+   FIT VIEW
+───────────────────────────────────────────────────────── */
+$('d-fit').addEventListener('click',fitView);
+$('s-fit').addEventListener('click',()=>{fitView();closeSheet()});
+
+/* ─────────────────────────────────────────────────────────
+   RESET
+───────────────────────────────────────────────────────── */
+$('d-reset').addEventListener('click',()=>resetView());
+$('s-reset').addEventListener('click',()=>{resetView();closeSheet()});
+
+/* ─────────────────────────────────────────────────────────
+   FULLSCREEN from sheet
+───────────────────────────────────────────────────────── */
+$('s-fs').addEventListener('click',()=>{toggleFS();closeSheet()});
+
+/* ─────────────────────────────────────────────────────────
+   D-PAD (desktop panel + sheet)
+───────────────────────────────────────────────────────── */
+function bindPan(upId,downId,leftId,rightId,centerId){
+  $(upId).addEventListener('click',()=>panBy(0,PAN));
+  $(downId).addEventListener('click',()=>panBy(0,-PAN));
+  $(leftId).addEventListener('click',()=>panBy(PAN,0));
+  $(rightId).addEventListener('click',()=>panBy(-PAN,0));
+  $(centerId).addEventListener('click',()=>resetView());
+}
+bindPan('d-pu','d-pd','d-pl','d-pr','d-pc');
+bindPan('s-pu','s-pd','s-pl','s-pr','s-pc');
+
+/* ─────────────────────────────────────────────────────────
+   CARD KEYBOARD A11Y
+───────────────────────────────────────────────────────── */
+document.querySelectorAll('.card,[role="button"]').forEach(el=>{
+  el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();el.click()}});
+});
+
+/* ─────────────────────────────────────────────────────────
+   SEARCH + SUGGESTIONS
+───────────────────────────────────────────────────────── */
+const sInput=$('s-input');
+const sugg=$('suggestions');
+$('s-clear').addEventListener('click',()=>{sInput.value='';sInput.focus();sugg.classList.remove('open')});
+sInput.addEventListener('focus',()=>sugg.classList.add('open'));
+sInput.addEventListener('blur',()=>setTimeout(()=>sugg.classList.remove('open'),150));
+sInput.addEventListener('input',()=>{
+  sugg.classList.toggle('open',sInput.value.length>=0);
+});
+sInput.addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&sInput.value.trim()){
+    toast(`🔍 "${sInput.value.trim()}" — search within the map embed`);
+    sugg.classList.remove('open');
+    sInput.blur();
+  }
+  if(e.key==='Escape'){sugg.classList.remove('open');sInput.blur()}
+});
+document.querySelectorAll('.sugg-item').forEach(item=>{
+  item.addEventListener('mousedown',e=>{e.preventDefault();sInput.value=item.dataset.q;sugg.classList.remove('open');toast(`🔍 Navigating to ${item.dataset.q}…`)});
+});
+/* mobile nav search btn */
+$('nb-search-btn').addEventListener('click',()=>{sInput.focus();sInput.select();$('nb-search-btn').classList.add('active');setTimeout(()=>$('nb-search-btn').classList.remove('active'),300)});
+
+/* ─────────────────────────────────────────────────────────
+   SCROLL WHEEL ZOOM (desktop)
+───────────────────────────────────────────────────────── */
+mapWrap.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const rect=mapWrap.getBoundingClientRect();
+  const ox=e.clientX-rect.left, oy=e.clientY-rect.top;
+  const delta=e.deltaY<0?STEP:-STEP;
+  zoomTo(S.scale+delta,ox,oy,S.smooth);
+},{passive:false});
+
+/* ─────────────────────────────────────────────────────────
+   MOUSE DRAG (pan mode / two-button drag)
+───────────────────────────────────────────────────────── */
+mapWrap.addEventListener('mousedown',e=>{
+  if(!S.panMode&&e.button!==1) return;
+  e.preventDefault();
+  S.drag.active=true;
+  S.drag.startX=e.clientX;S.drag.startY=e.clientY;
+  S.drag.startTx=S.tx;S.drag.startTy=S.ty;
+  mapWrap.style.cursor='grabbing';
+});
+document.addEventListener('mousemove',e=>{
+  if(!S.drag.active) return;
+  S.tx=S.drag.startTx+(e.clientX-S.drag.startX);
+  S.ty=S.drag.startTy+(e.clientY-S.drag.startY);
+  applyNow();updateUI();
+});
+document.addEventListener('mouseup',()=>{
+  S.drag.active=false;
+  mapWrap.style.cursor='';
+});
+
+/* ─────────────────────────────────────────────────────────
+   TOUCH EVENTS — pinch + two-finger pan
+───────────────────────────────────────────────────────── */
+function getDist(t){return Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY)}
+function getMid(t,rect){
+  return{
+    x:((t[0].clientX+t[1].clientX)/2)-rect.left,
+    y:((t[0].clientY+t[1].clientY)/2)-rect.top
+  }
+}
+
+let lastTouchEnd=0;
+mapWrap.addEventListener('touchstart',e=>{
+  if(e.touches.length===2){
+    // Cancel any ongoing pan
+    S.touch.active=false;
+    S.pinch.active=true;
+    S.pinch.startDist=getDist(e.touches);
+    S.pinch.startScale=S.scale;
+    const rect=mapWrap.getBoundingClientRect();
+    const mid=getMid(e.touches,rect);
+    S.pinch.cx=mid.x;S.pinch.cy=mid.y;
+    S.pinch.startTx=S.tx;S.pinch.startTy=S.ty;
+  }
+},{passive:true});
+
+mapWrap.addEventListener('touchmove',e=>{
+  if(S.pinch.active&&e.touches.length===2){
+    e.preventDefault();
+    const dist=getDist(e.touches);
+    const ns=clamp(S.pinch.startScale*(dist/S.pinch.startDist),S.minScale,S.maxScale);
+    // keep midpoint fixed
+    const rx=(S.pinch.cx-S.pinch.startTx)/S.pinch.startScale;
+    const ry=(S.pinch.cy-S.pinch.startTy)/S.pinch.startScale;
+    // also allow two-finger pan
+    const rect=mapWrap.getBoundingClientRect();
+    const mid=getMid(e.touches,rect);
+    S.tx=mid.x-rx*ns;
+    S.ty=mid.y-ry*ns;
+    S.scale=ns;
+    applyNow();updateUI();
+  }
+},{passive:false});
+
+mapWrap.addEventListener('touchend',e=>{
+  if(e.touches.length<2) S.pinch.active=false;
+  // double-tap to zoom
+  const now=Date.now();
+  if(e.changedTouches.length===1&&(now-lastTouchEnd)<300){
+    const rect=mapWrap.getBoundingClientRect();
+    const ox=e.changedTouches[0].clientX-rect.left;
+    const oy=e.changedTouches[0].clientY-rect.top;
+    const target=S.scale>1.5?1:2;
+    zoomTo(target,ox,oy,true);
+    haptic([12]);
+  }
+  lastTouchEnd=now;
+},{passive:true});
+
+/* ─────────────────────────────────────────────────────────
+   KEYBOARD SHORTCUTS
+───────────────────────────────────────────────────────── */
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA') return;
+  switch(e.key){
+    case '+'||'=': zi();break;
+    case '+': zi();break;
+    case '=': zi();break;
+    case '-': zo();break;
+    case '_': zo();break;
+    case '0': resetView();break;
+    case 's':case 'S':
+      if(window.innerWidth<700) openSheet();
+      else leftPanel.classList.toggle('collapsed');
+      break;
+    case 't':case 'T': setTheme(!S.dark);toast(S.dark?'🌙 Dark':'☀️ Light');break;
+    case 'f':case 'F': toggleFS();break;
+    case 'm':case 'M': toggleMinimap();break;
+    case '?': $('help-modal').classList.toggle('open');break;
+    case 'ArrowUp':    e.preventDefault();panBy(0,PAN);break;
+    case 'ArrowDown':  e.preventDefault();panBy(0,-PAN);break;
+    case 'ArrowLeft':  e.preventDefault();panBy(PAN,0);break;
+    case 'ArrowRight': e.preventDefault();panBy(-PAN,0);break;
+    case 'Escape':
+      closeSheet();
+      document.querySelectorAll('.modal-bg.open,.modal-overlay.open').forEach(m=>m.classList.remove('open'));
+      break;
+  }
+});
+
+/* ─────────────────────────────────────────────────────────
+   GESTURE HINT (dismiss)
+───────────────────────────────────────────────────────── */
+const hintOverlay=$('hint-overlay');
+function dismissHint(){hintOverlay.style.display='none';localStorage.setItem('mv-hint','seen')}
+$('hint-skip').addEventListener('click',dismissHint);
+hintOverlay.addEventListener('click',e=>{if(e.target===hintOverlay) dismissHint()});
+setTimeout(dismissHint,4000);
+if(localStorage.getItem('mv-hint')==='seen') dismissHint();
+
+/* ─────────────────────────────────────────────────────────
+   RESIZE OBSERVER (keep transform sensible)
+───────────────────────────────────────────────────────── */
+new ResizeObserver(()=>{applyNow();updateUI()}).observe(mapWrap);
+
+/* ─────────────────────────────────────────────────────────
+   INIT
+───────────────────────────────────────────────────────── */
+applyNow();
+updateUI();
+
+/* hint on load only on mobile */
+if(window.innerWidth>=700) dismissHint();
+
+</script>
+</body>
+</html>
